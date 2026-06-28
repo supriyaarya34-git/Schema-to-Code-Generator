@@ -6,14 +6,11 @@ import {
   Copy, 
   Check, 
   Download, 
-  Sparkles, 
-  RefreshCw, 
-  X, 
   Layers, 
   Cpu, 
-  AlertCircle,
   Code,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileText
 } from 'lucide-react';
 
 // Interfaces for parser
@@ -66,21 +63,16 @@ const SAMPLE_SCHEMAS = {
 )`
 };
 
+type TabType = 'sp' | 'xml' | 'datamanager' | 'model' | 'js' | 'controller' | 'view' | 'partialView';
+
 export default function App() {
   const [schemaInput, setSchemaInput] = useState(SAMPLE_SCHEMAS.assetLocation);
-  const [activeTab, setActiveTab] = useState<'sp' | 'xml' | 'datamanager' | 'model'>('sp');
+  const [activeTab, setActiveTab] = useState<TabType>('sp');
   const [copied, setCopied] = useState(false);
   
   // Custom URL slug and system-specific inputs
   const [customSlug, setCustomSlug] = useState('');
   
-  // AI Refinement states
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [customizedCodes, setCustomizedCodes] = useState<Record<string, string>>({});
-  const [aiSuccessMessage, setAiSuccessMessage] = useState<string | null>(null);
-
   // Parse SQL Table details
   const [tableName, setTableName] = useState('tbl_Asset_Location');
   const [columns, setColumns] = useState<Column[]>([]);
@@ -534,20 +526,592 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
  }`;
   };
 
+  // 5. Generate Javascript code
+  const generateJsCode = () => {
+    const customFieldsMapping = customColumns.map(col => {
+      if (col.type === 'bit') {
+        return `                ${col.name}: $('#chkIsDeleted${col.name}').prop('checked')`;
+      }
+      return `                ${col.name}: $('#txt${col.name}').val()`;
+    }).join(',\n');
+
+    return `function Process${pascalCaseName}() {
+    try {
+        if (IsValid${pascalCaseName}Data()) {
+            $('#Asset${pascalCaseName}Button').attr('disabled', true);
+            $('#Asset${pascalCaseName}Button').addClass('disabled');
+            var Data = {
+                ${pkColumn.name}: $('#hdnID').val(),
+                ${nameColumn.name}: $('#txtName${pascalCaseName}').val(),
+${customFieldsMapping ? customFieldsMapping + ',\n' : ''}                ModifiedOn: $('#hdnDTMM').val(),
+                IsDeleted: $('#chkIsDeleted${pascalCaseName}').prop('checked'),
+                Action: ($('#hdnID').val() == '0' || $('#hdnID').val() == '' ? 'I' : 'U'),
+            };
+            $.ajax({
+                url: FlyingStarRootPath + "/Settings/Asset/Process${pascalCaseName}",
+                data: { jsonData: JSON.stringify(Data) },
+                type: "POST",
+                datatype: "json",
+                cache: false,
+                success: function (response) {
+                    if (response != null && response != undefined && response.success)
+                    {
+                        if (response.message != null && response.message == 'Success')
+                        {
+                            ShowMessage(JSON.parse(response.data)[0]["Status"], response.message);
+                            clear${pascalCaseName}();
+                            showHideSections('View');
+                            fetch${pascalCaseName}();
+                        }
+                        else
+                            ShowMessage(response.data, response.message);
+                    }
+                    else ShowMessage(response.data, response.message);
+                    $('#Asset${pascalCaseName}Button').removeAttr('disabled');
+                    $('#Asset${pascalCaseName}Button').removeClass('disabled');
+                },
+                error: function (er) {
+                    console.log(er);
+                    $('#Asset${pascalCaseName}Button').removeAttr('disabled');
+                    $('#Asset${pascalCaseName}Button').removeClass('disabled');
+                }
+            });
+        }
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function clear${pascalCaseName}(isManage) {
+    try {
+        $('#txtName${pascalCaseName}').val('');
+        $('#hdnID').val('');
+        $('#hdnDTMM').val('');
+        $('#chkIsDeleted${pascalCaseName}').prop('checked', false);
+${customColumns.map(col => col.type === 'bit' ? `        $('#chkIsDeleted${col.name}').prop('checked', false);` : `        $('#txt${col.name}').val('');`).join('\n')}
+        if (isManage)
+            activateTab('manage');
+        else
+            activateTab('view');
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+$(document).ready(function () {
+    try {
+        $('#btnSubmit').click(function (e) {
+            e.preventDefault();
+            hideMessage();
+            Process${pascalCaseName}();
+        });
+        $('#btnCancel').click(function (e) {
+            e.preventDefault();
+            clear${pascalCaseName}();
+            fetch${pascalCaseName}();
+        });
+        BindDataTables('tbl_View');
+        bulkUploadFile('ipfileEMP', '${pascalCaseName}', '${pascalCaseName}');
+    } catch (e) {
+        console.log(e);
+    }
+});
+
+function fetch${pascalCaseName}() {
+    try {
+        ShowLoadingMsg('view');
+        var Data = {
+            ${pkColumn.name}: $('#hdnID').val(),
+            ${nameColumn.name}: $('#txtName${pascalCaseName}').val(),
+${customFieldsMapping ? customFieldsMapping + ',\n' : ''}            ModifiedOn: $('#hdnDTMM').val(),
+            IsDeleted: $('#chkIsDeleted${pascalCaseName}').prop('checked'),
+            Action: 'S',
+        };
+        var StarAjax = $.ajax({
+            url: FlyingStarRootPath + "/Settings/Asset/Fetch${pascalCaseName}",
+            data: { jsonData: JSON.stringify(Data) },
+            type: "POST",
+            datatype: "html",
+            success: function (response) {
+                if (response.indexOf('errorcode') == -1) {
+                    $('#view').html(response);
+                    BindDataTables('tbl_View');
+                    Acccess();
+                }
+                else {
+                    ShowMessage(response.data, response.message);
+                }
+            },
+            error: function (er) {
+                console.log(er);
+            }
+        });
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function edit${pascalCaseName}(id) {
+    try {
+        if (id != null && id != undefined && id != '') {
+            var Data = {
+                ${pkColumn.name}: id,
+                ${nameColumn.name}: '',
+                ModifiedOn: '',
+                IsDeleted: false,
+                Action: 'E',
+            };
+            $.ajax({
+                url: FlyingStarRootPath + "/Settings/Asset/Process${pascalCaseName}",
+                data: { jsonData: JSON.stringify(Data) },
+                type: "POST",
+                success: function (response) {
+                    if (response != null && response != undefined) {
+                        if (response.success) {
+                            var data = JSON.parse(response.data)[0];
+                            $('#txtName${pascalCaseName}').val(data.${nameColumn.name});
+                            $('#hdnID').val(data.${pkColumn.name});
+                            $('#hdnDTMM').val(data.ModifiedOn);
+                            if (data.IsDeleted) {
+                                $('#chkIsDeleted${pascalCaseName}').prop('checked', true);
+                            }
+                            else if (!data.IsDeleted) {
+                                $('#chkIsDeleted${pascalCaseName}').prop('checked', false);
+                            }
+${customColumns.map(col => {
+  if (col.type === 'bit') {
+    return `                            if (data.${col.name}) {
+                                $('#chkIsDeleted${col.name}').prop('checked', true);
+                            } else {
+                                $('#chkIsDeleted${col.name}').prop('checked', false);
+                            }`;
+  }
+  return `                            $('#txt${col.name}').val(data.${col.name});`;
+}).join('\n')}
+                            showHideSections('manage');
+                        }
+                        else
+                            ShowMessage(response.data, response.message);
+                    }
+                },
+                error: function (er) {
+                    console.log(er);
+                }
+            });
+        }
+        else
+            ShowMessage('Invalid Selection', 'ERROR');
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function delete${pascalCaseName}(id, action) {
+    try {
+        if(action == undefined)
+            action = 'D';
+        if (id != null && id != undefined && id != '') {
+            var Data = {
+                ${pkColumn.name}: id,
+                ${nameColumn.name}: '',
+                ModifiedOn: $('#DTM_' + id).val(),
+                IsDeleted: false,
+                Action: action,
+            };
+            $.ajax({
+                url: FlyingStarRootPath + "/Settings/Asset/Process${pascalCaseName}",
+                data: { jsonData: JSON.stringify(Data) },
+                type: "POST",
+                success: function (response) {
+                    if (response != null && response != undefined && response.success) {
+                        if (response.message != null && response.message == 'Success') {
+                            ShowMessage(JSON.parse(response.data)[0]["Status"], response.message);
+                            clear${pascalCaseName}();
+                            activateTab('View');
+                            fetch${pascalCaseName}();
+                        }
+                        else
+                            ShowMessage(response.data, response.message);
+                    }
+                    else ShowMessage(response.data, response.message);
+                },
+                error: function (er) {
+                    console.log(er);
+                }
+            });
+        }
+        else
+            ShowMessage('Invalid Selection', 'ERROR');
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function IsDefault(id, action) {
+    try {
+        if (action == undefined)
+            action = 'G';
+        if (id != null && id != undefined && id != '') {
+            var Data = {
+                ${pkColumn.name}: id,
+                ${nameColumn.name}: '',
+                ModifiedOn: $('#DTM_' + id).val(),
+                Action: action,
+            };
+            $.ajax({
+                url: FlyingStarRootPath + "/Settings/Asset/Process${pascalCaseName}",
+                data: { jsonData: JSON.stringify(Data) },
+                type: "POST",
+                success: function (response) {
+                    if (response != null && response != undefined && response.success) {
+                        if (response.message != null && response.message == 'Success') {
+                            ShowMessage(JSON.parse(response.data)[0]["Status"], response.message);
+                            clear${pascalCaseName}();
+                            activateTab('View');
+                            fetch${pascalCaseName}();
+                            Acccess();
+                        }
+                        else
+                            ShowMessage(response.data, response.message);
+                    }
+                    else ShowMessage(response.data, response.message);
+                },
+                error: function (er) {
+                    console.log(er);
+                }
+            });
+        }
+        else
+            ShowMessage('Invalid Selection', 'ERROR');
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function IsValid${pascalCaseName}Data() {
+    var sbError = new StringBuilder();
+    if (ValidateValue($('#txtName${pascalCaseName}').val()) == '') {
+        sbError.append('Please Enter ${baseName.replace(/_/g, ' ')} Name' + '<br/>');
+    }
+    else if (ValidateValue($('#txtName${pascalCaseName}').val()) != '' && ValidateValue($('#txtName${pascalCaseName}').val()).length > 100) {
+        sbError.append('Maxlength allowed is 100 for ${baseName.replace(/_/g, ' ')} Name' + '<br/>');
+    }
+    else if (ValidateValue($('#txtName${pascalCaseName}').val()) != '' && !isSpclChar($('#txtName${pascalCaseName}').val())) {
+        sbError.append('Please Enter Valid ${baseName.replace(/_/g, ' ')} Name' + '<br/>');
+    }
+    if (sbError.toString() == '') {
+        return true;
+    }
+    else if (sbError.toString() != '') {
+        ShowMessage(sbError.toString(), 'error', '${baseName.replace(/_/g, ' ')}');
+        return false;
+    }
+}
+
+function quickAccessAdd() {
+    $('#dvaddbutton').hide();
+    showHideSections('manage');
+    clear${pascalCaseName}();
+}
+
+function quickAccessView() {
+    $('#dvaddbutton').show();
+    showHideSections('view');
+    clear${pascalCaseName}();
+    fetch${pascalCaseName}();
+}
+
+function showHideSections(type) {
+    _destroyDataTables();
+    switch (type.toLowerCase()) {
+        case "view":
+            {
+                $('#view').show();
+                $('#manage').hide();
+                $('#bulkupload').hide();
+                $('.btn-back').hide();
+                $('#dvaddbutton').show();
+                break;
+            }
+        case "manage":
+            {
+                $('#view').hide();
+                $('#manage').show();
+                $('#bulkupload').hide();
+                $('.btn-back').show();
+                $('#dvaddbutton').hide();
+                break;
+            }
+        case "bulk":
+            {
+                $('#view').hide();
+                $('#manage').hide();
+                $('#bulkupload').show();
+                $('.btn-back').show();
+                $('#dvaddbutton').hide();
+                break;
+            }
+        default: {
+            $('#view').show();
+            $('#manage').hide();
+            $('.btn-back').hide();
+            $('#dvaddbutton').show();
+            break;
+        }
+    }
+}
+
+function BulkUploadShowHide() {
+    if ($('#btnBulkUpload').html().indexOf('Bulk') > -1) {
+        $('#dvinsert').hide();
+        $('#dvBulkUploadEmp').show();
+        $('#dvinsertFooter').hide();
+        $('#dvinsertFooter').removeClass('d-md-inline-flex').removeClass('d-sm-block');
+        $('#btnBulkUpload').html('Manual Upload <i class="icon-paperplane ml-2"></i>');
+    }
+    else {
+        activateTab('manage');
+        $('#dvinsert').show();
+        $('#dvinsertFooter').show();
+        $('#dvinsertFooter').addClass('d-md-inline-flex').addClass('d-sm-block');
+    }
+}`;
+  };
+
+  // 6. Generate Controller code
+  const generateControllerCode = () => {
+    return `public ActionResult ${pascalCaseName}()
+ {
+     ${pascalCaseName} obj${pascalCaseName} = new Models.${pascalCaseName}();
+     obj${pascalCaseName}.Action = "S";
+     string strType = FlyingStarDataManager.Process${pascalCaseName}(obj${pascalCaseName});
+     List<${pascalCaseName}> arr${pascalCaseName} = JsonConvert.DeserializeObject<List<${pascalCaseName}>>(strType);
+     return View("${pascalCaseName}", arr${pascalCaseName});
+ }
+
+ [HttpPost, ValidateHeaderAntiForgeryToken]
+ public ActionResult Process${pascalCaseName}(string jsonData, string SearchText = "")
+ {
+     bool isSuccess = false;
+     string strResponse = string.Empty;
+     try
+     {
+         var result = JsonConvert.DeserializeObject<${pascalCaseName}>(jsonData);
+         strResponse = validate${pascalCaseName}(result);
+         if (strResponse.TrimmedString().Length.Equals(0))
+         {
+             strResponse = FlyingStarDataManager.Process${pascalCaseName}(result);
+             if (strResponse.TrimmedString().Length > 0)
+             {
+                 isSuccess = true;
+             }
+         }
+     }
+     catch (Exception ex)
+     {
+         ErrorLog.LogError(ex);
+     }
+     return Json(new
+     {
+         success = isSuccess,
+         message = isSuccess ? "Success" : "Error",
+         data = strResponse,
+     }, JsonRequestBehavior.AllowGet);
+ }
+
+ [HttpPost, ValidateHeaderAntiForgeryToken]
+ public ActionResult Fetch${pascalCaseName}(string jsonData)
+ {
+     try
+     {
+         var result = JsonConvert.DeserializeObject<${pascalCaseName}>(jsonData);
+         string strType = FlyingStarDataManager.Process${pascalCaseName}(result);
+         List<${pascalCaseName}> arr${pascalCaseName} = JsonConvert.DeserializeObject<List<${pascalCaseName}>>(strType);
+         return PartialView("~/Areas/Settings/Views/Asset/_${pascalCaseName}View.cshtml", arr${pascalCaseName});
+     }
+     catch (Exception ex)
+     {
+         ErrorLog.LogError(ex);
+         return null;
+     }
+ }
+
+ private string validate${pascalCaseName}(${pascalCaseName} obj${pascalCaseName})
+ {
+     StringBuilder strReturn = new StringBuilder("");
+     string strBreakLine = "<br/>";
+     if (obj${pascalCaseName}.Action.Equals("I") || obj${pascalCaseName}.Action.Equals("U"))
+     {
+         strReturn.Append(Validations.ValidateText(obj${pascalCaseName}.${nameColumn.name}, Validations.IsRequired.Mandatory, "${baseName.replace(/_/g, ' ')} Name", Validations.ValidationType.SQLInject, 100));
+${customColumns.map(col => {
+  if (col.type.includes('varchar') || col.type.includes('text')) {
+    return `         strReturn.Append(Validations.ValidateText(obj${pascalCaseName}.${col.name}, Validations.IsRequired.Optional, "${col.name.replace(/_/g, ' ')}", Validations.ValidationType.SQLInject, ${col.length || '500'}));`;
+  }
+  return '';
+}).filter(Boolean).join('\n')}
+     }
+     return strReturn.ToString().Replace(strBreakLine + strBreakLine, "");
+ }`;
+  };
+
+  // 7. Generate View HTML code
+  const generateViewHtmlCode = () => {
+    return `@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@Html.Partial("~/Areas/Settings/Views/Shared/_SettingsAddButton.cshtml")
+<div class="companyform-wrapper">
+    <div class="companyform-innerwrp">
+
+        <div class="companybtm-formwrap">
+            <div class="companytabs-formwrap">
+                <div id="view">
+                    <div class="table-responsive">
+                        @Html.Partial("_${pascalCaseName}View")
+                    </div>
+                </div>
+                <div id="manage" style="display:none">
+                    <div class="p-2">
+                        <div class="personindivid-head header-elements-inline">
+                            ${baseName.replace(/_/g, ' ')}
+                        </div>
+                        <div id="dvinsert">
+                            @Html.Partial("~/Areas/Settings/Views/Asset/_Add${pascalCaseName}.cshtml")
+                        </div>
+                        <div class="squadconfiq-btnwrap">
+                            <div class="commonform-btnwrap">
+                                <div class="btnSection" id="dvinsertFooter">
+                                    <button type="button" class="btn canclebtn" onclick="clear${pascalCaseName}(); showHideSections('manage');">Cancel </button>
+                                    <button type="button" class="btn bg-squad1Blue text-squad1Blue border-squad1Blue" onclick="clear${pascalCaseName}(); showHideSections('bulk');">Bulk Upload </button>
+                                    <button type="button" id="Asset${pascalCaseName}Button" class="btn submitbtn btn-leftmargin" onclick="Process${pascalCaseName}();">Submit</button>
+                                </div>
+                                <input type="hidden" id="hdnID" value="0" />
+                                <input type="hidden" id="hdnDTMM" value="" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="bulkupload" style="display:none">
+                    <div class="col-12">
+                        <div class="p-2">
+                            <div class="personindivid-head header-elements-inline">
+                                ${baseName.replace(/_/g, ' ')}
+                            </div>
+                            <div id="dvBulkUploadEmp">
+                                <div id="dv_fu_BulkUploadEmp">
+                                    <label class="bulkupload-label">Upload ${baseName.replace(/_/g, ' ')} <span class="small-label"></span> </label>
+                                    <div class="col-lg-9">
+                                        <input type="file" id="ipfileEMP" class="file-input" data-show-preview="false" data-browse-class="btn btn-primary" data-remove-class="btn btn-default" accept=".xls,.xlsx">
+                                        <input type="hidden" value="" id="fileEMP" />
+                                    </div>
+                                </div>
+                                <br />
+                                <div class="btnSection">
+                                    <a class="btn canclebtn" onclick="DownloadFile('${pascalCaseName}.xlsx', '/Downloads/');">Download Sample File<i class="icon-file-download ml-2"></i></a>
+                                    <a class="btn submitbtn mx-sm-2" id="btnBulkUpload" onclick="quickAccessAdd();">Manual Upload <i class="icon-paperplane ml-2"></i></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@Scripts.Render("~/bundles/js/fileuploadlibs")
+<script type="text/javascript" src="@Url.Content("~/content/js/settings/asset/${baseName.toLowerCase().replace(/_/g, '')}.js?rd=" + "" + ViewBag.ReferenceNumber)"></script>`;
+  };
+
+  // 8. Generate Partial View code
+  const generatePartialViewCode = () => {
+    return `@model IEnumerable<TKGRC.Areas.Settings.Models.${pascalCaseName}>
+
+
+@if (Model == null || Model.Count() == 0)
+{
+    @Html.NoDataHTML("", "No ${baseName.replace(/_/g, ' ')} Available to show");
+}
+else
+{
+    <table class="table table-squad1" id="tbl_View_${pascalCaseName}">
+        <thead>
+            <tr>
+                <th>${baseName.replace(/_/g, ' ')} Name</th>
+${customColumns.map(col => `                <th>${col.name.replace(/_/g, ' ')}</th>`).join('\n')}
+                <th>Is Active</th>
+                <th class="text-center viewAccess">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var item in Model)
+            {
+                string strRowClass = string.Empty;
+                ${hasIsDefault ? `if (item.IsDefault)
+                {
+                    strRowClass = "table-info";
+                }` : ''}
+                <tr class="@strRowClass">
+                    <td>@item.${nameColumn.name}</td>
+${customColumns.map(col => `                    <td>@item.${col.name}</td>`).join('\n')}
+                    @if (item.IsDeleted)
+                    {
+                        <td><span class="badge badge-danger">Inactive</span></td>
+                    }
+                    else
+                    {
+                        <td><span class="badge badge-success">Active</span></td>
+                    }
+                    <td class="text-center">
+                        <div class="list-icons">
+                            <div class="dropdown viewAccess">
+                                <a href="#" class="list-icons-item" data-toggle="dropdown">
+                                    <i class="mi-more-horiz mi-2x"></i>
+                                </a>
+                                <input type="hidden" id="DTM_@item.${pkColumn.name}" value="@item.ModifiedOn" />
+
+                                <div class="dropdown-menu dropdown-menu-right">
+                                    <a href="#" onclick="edit${pascalCaseName}('@item.${pkColumn.name}');" class="dropdown-item"><i class="icon-pencil5"></i> Edit</a>
+                                    @if (item.IsDeleted)
+                                    {
+                                        <a href="#" onclick="delete${pascalCaseName}('@item.${pkColumn.name}', 'A');" class="dropdown-item"><i class="icon-checkmark"></i> Activate</a>
+                                    }
+                                    else
+                                    {
+                                        <a href="#" onclick="delete${pascalCaseName}('@item.${pkColumn.name}', 'D');" class="dropdown-item"><i class="icon-trash"></i> Delete</a>
+                                    }
+
+                                    ${hasIsDefault ? `@if (!item.IsDefault && !item.IsDeleted)
+                                    {
+                                        <a href="#" onclick="IsDefault('@item.${pkColumn.name}', 'G');" class="dropdown-item"><i class="icon-pushpin"></i> Set as Default</a>
+                                    }` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            }
+
+        </tbody>
+    </table>
+}`;
+  };
+
   // Final source code mapping based on active tab
-  const getStandardCode = (type: 'sp' | 'xml' | 'datamanager' | 'model') => {
+  const getStandardCode = (type: TabType) => {
     switch(type) {
       case 'sp': return generateSpCode();
       case 'xml': return generateXmlCode();
       case 'datamanager': return generateDataManagerCode();
       case 'model': return generateModelCode();
+      case 'js': return generateJsCode();
+      case 'controller': return generateControllerCode();
+      case 'view': return generateViewHtmlCode();
+      case 'partialView': return generatePartialViewCode();
     }
   };
 
   const getActiveCode = () => {
-    if (customizedCodes[activeTab]) {
-      return customizedCodes[activeTab];
-    }
     return getStandardCode(activeTab);
   };
 
@@ -581,6 +1145,22 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
         filename = `${pascalCaseName}.cs`;
         mime = 'text/plain';
         break;
+      case 'js':
+        filename = `${baseName.toLowerCase().replace(/_/g, '')}.js`;
+        mime = 'application/javascript';
+        break;
+      case 'controller':
+        filename = `${pascalCaseName}Controller.cs`;
+        mime = 'text/plain';
+        break;
+      case 'view':
+        filename = `${pascalCaseName}.cshtml`;
+        mime = 'text/html';
+        break;
+      case 'partialView':
+        filename = `_${pascalCaseName}View.cshtml`;
+        mime = 'text/html';
+        break;
     }
 
     const blob = new Blob([code], { type: mime });
@@ -592,57 +1172,6 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
-
-  // Ask AI to customize
-  const handleAiCustomize = async () => {
-    if (!aiPrompt.trim()) return;
-    setIsAiLoading(true);
-    setAiError(null);
-    setAiSuccessMessage(null);
-
-    try {
-      const response = await fetch('/api/customize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          schema: schemaInput,
-          prompt: aiPrompt,
-          fileType: activeTab
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Server returned an error');
-      }
-
-      if (data.code) {
-        setCustomizedCodes(prev => ({
-          ...prev,
-          [activeTab]: data.code
-        }));
-        setAiSuccessMessage(`Successfully refined the ${activeTab.toUpperCase()} output!`);
-        setAiPrompt('');
-      } else {
-        throw new Error('Received empty response from server.');
-      }
-    } catch (err: any) {
-      console.error(err);
-      setAiError(err.message || 'An error occurred while connecting to the AI helper.');
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  // Reset customized code back to standard template
-  const handleResetCustomization = () => {
-    setCustomizedCodes(prev => {
-      const copy = { ...prev };
-      delete copy[activeTab];
-      return copy;
-    });
-    setAiSuccessMessage(null);
   };
 
   return (
@@ -663,15 +1192,10 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/50 px-3 py-1.5 rounded border border-[#30363d]">
-            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            Database: <span className="text-blue-400 font-mono">DbSquad1AllClientDev</span>
-          </div>
-          
           <button 
             onClick={() => {
               // Copy all standard files
-              const text = `/* STORED PROCEDURE */\n${generateSpCode()}\n\n/* DB MAPPING XML */\n${generateXmlCode()}\n\n/* DATA MANAGER METHOD */\n${generateDataManagerCode()}\n\n/* MODEL CLASS */\n${generateModelCode()}`;
+              const text = `/* STORED PROCEDURE */\n${generateSpCode()}\n\n/* DB MAPPING XML */\n${generateXmlCode()}\n\n/* DATA MANAGER METHOD */\n${generateDataManagerCode()}\n\n/* MODEL CLASS */\n${generateModelCode()}\n\n/* JAVASCRIPT CONTROLLER */\n${generateJsCode()}\n\n/* CONTROLLER ACTION */\n${generateControllerCode()}\n\n/* VIEW HTML */\n${generateViewHtmlCode()}\n\n/* PARTIAL VIEW */\n${generatePartialViewCode()}`;
               navigator.clipboard.writeText(text);
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
@@ -708,7 +1232,6 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
             <button 
               onClick={() => {
                 setSchemaInput(SAMPLE_SCHEMAS.assetLocation);
-                setCustomizedCodes({});
               }}
               className={`text-xs px-2.5 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
                 schemaInput === SAMPLE_SCHEMAS.assetLocation 
@@ -721,7 +1244,6 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
             <button 
               onClick={() => {
                 setSchemaInput(SAMPLE_SCHEMAS.machineType);
-                setCustomizedCodes({});
               }}
               className={`text-xs px-2.5 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
                 schemaInput === SAMPLE_SCHEMAS.machineType 
@@ -734,7 +1256,6 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
             <button 
               onClick={() => {
                 setSchemaInput(SAMPLE_SCHEMAS.departmentMaster);
-                setCustomizedCodes({});
               }}
               className={`text-xs px-2.5 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
                 schemaInput === SAMPLE_SCHEMAS.departmentMaster 
@@ -751,7 +1272,6 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
               value={schemaInput}
               onChange={(e) => {
                 setSchemaInput(e.target.value);
-                setCustomizedCodes({}); // reset customized on input change
               }}
               className="w-full h-full p-4 font-mono text-[12px] bg-[#010409] text-[#e6edf3] resize-none focus:outline-none border-0 leading-relaxed overflow-auto"
               spellCheck="false"
@@ -780,64 +1300,95 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
         </section>
 
         {/* Right Panel: Output Tabs & Code View */}
-        <section className="flex-1 flex flex-col bg-[#0d1117] min-h-0">
+        <section className="flex-1 flex flex-col bg-[#0d1117] min-h-0 border-l border-[#30363d]">
           
           {/* Tab Navigation */}
-          <div className="flex items-center justify-between bg-[#161b22] border-b border-[#30363d] shrink-0 px-2">
-            <div className="flex">
+          <div className="flex items-center justify-between bg-[#161b22] border-b border-[#30363d] shrink-0 overflow-x-auto select-none">
+            <div className="flex flex-wrap md:flex-nowrap">
               <button 
-                onClick={() => { setActiveTab('sp'); setAiSuccessMessage(null); }}
-                className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
+                onClick={() => { setActiveTab('sp'); }}
+                className={`px-3 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1 shrink-0 ${
                   activeTab === 'sp' 
-                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50' 
+                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50 font-bold' 
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <FileCode className="w-3.5 h-3.5" /> Stored Procedure
+                <FileCode className="w-3.5 h-3.5" /> SP
               </button>
               <button 
-                onClick={() => { setActiveTab('xml'); setAiSuccessMessage(null); }}
-                className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
+                onClick={() => { setActiveTab('xml'); }}
+                className={`px-3 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1 shrink-0 ${
                   activeTab === 'xml' 
-                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50' 
+                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50 font-bold' 
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Code className="w-3.5 h-3.5" /> DBMapping.xml
+                <Code className="w-3.5 h-3.5" /> XML Mapping
               </button>
               <button 
-                onClick={() => { setActiveTab('datamanager'); setAiSuccessMessage(null); }}
-                className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
+                onClick={() => { setActiveTab('datamanager'); }}
+                className={`px-3 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1 shrink-0 ${
                   activeTab === 'datamanager' 
-                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50' 
+                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50 font-bold' 
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Code2 className="w-3.5 h-3.5" /> DataManager.cs
+                <Code2 className="w-3.5 h-3.5" /> DataManager
               </button>
               <button 
-                onClick={() => { setActiveTab('model'); setAiSuccessMessage(null); }}
-                className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
+                onClick={() => { setActiveTab('model'); }}
+                className={`px-3 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1 shrink-0 ${
                   activeTab === 'model' 
-                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50' 
+                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50 font-bold' 
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" /> Model.cs
               </button>
+              <button 
+                onClick={() => { setActiveTab('js'); }}
+                className={`px-3 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1 shrink-0 ${
+                  activeTab === 'js' 
+                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50 font-bold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5 text-amber-500" /> JS Code
+              </button>
+              <button 
+                onClick={() => { setActiveTab('controller'); }}
+                className={`px-3 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1 shrink-0 ${
+                  activeTab === 'controller' 
+                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50 font-bold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Code className="w-3.5 h-3.5 text-purple-400" /> Controller
+              </button>
+              <button 
+                onClick={() => { setActiveTab('view'); }}
+                className={`px-3 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1 shrink-0 ${
+                  activeTab === 'view' 
+                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50 font-bold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-emerald-400" /> View.cshtml
+              </button>
+              <button 
+                onClick={() => { setActiveTab('partialView'); }}
+                className={`px-3 py-3 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer border-b-2 flex items-center gap-1 shrink-0 ${
+                  activeTab === 'partialView' 
+                    ? 'border-blue-500 text-blue-400 bg-[#0d1117]/50 font-bold' 
+                    : 'border-transparent text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-sky-400" /> _PartialView
+              </button>
             </div>
 
             {/* Actions for active code block */}
-            <div className="flex gap-2 pr-2">
-              {customizedCodes[activeTab] && (
-                <button 
-                  onClick={handleResetCustomization}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 border border-[#30363d] cursor-pointer"
-                  title="Reset to default template"
-                >
-                  <RefreshCw className="w-3 h-3" /> Reset Template
-                </button>
-              )}
+            <div className="flex gap-2 pr-2 shrink-0">
               <button 
                 onClick={handleCopy}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded text-xs transition-all flex items-center gap-1.5 border border-[#30363d] cursor-pointer"
@@ -855,103 +1406,28 @@ ${customColumns.map(col => `     public ${col.type === 'bit' ? 'bool' : 'string'
             </div>
           </div>
 
-          {/* AI Banner info if current view is customized */}
-          {customizedCodes[activeTab] && (
-            <div className="bg-blue-950/40 border-b border-blue-900/50 px-4 py-1.5 flex items-center justify-between text-xs text-blue-400 font-medium shrink-0">
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-blue-400 fill-blue-400/20" />
-                This code block has been customized by Gemini AI
-              </span>
-              <button 
-                onClick={handleResetCustomization}
-                className="text-[10px] uppercase font-bold text-slate-400 hover:text-white"
-              >
-                Reset to Standard
-              </button>
-            </div>
-          )}
-
           {/* Code display window */}
           <div className="flex-1 overflow-auto p-4 bg-[#010409] text-[#e6edf3] font-mono text-[13px] leading-relaxed relative min-h-0 select-text">
             {/* Syntax-colored code block */}
             <pre className="whitespace-pre-wrap select-text">{getActiveCode()}</pre>
           </div>
 
-          {/* AI Copilot Input Drawer / Inline Customize */}
-          <div className="bg-[#161b22] border-t border-[#30363d] p-3 shrink-0">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-                <Sparkles className="w-4 h-4 text-blue-400 fill-blue-400/10" />
-                <span>Gemini Code Refiner &amp; Customizer</span>
-              </div>
-              <span className="text-[10px] text-slate-400 font-mono">
-                Modifies {activeTab.toUpperCase()} code using AI
-              </span>
-            </div>
-
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAiCustomize();
-                }}
-                disabled={isAiLoading}
-                placeholder="Ask Gemini to customize (e.g. 'remove CompanyID filter', 'use hard delete', 'add parameter for Description')"
-                className="flex-1 bg-[#010409] border border-[#30363d] rounded px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 disabled:opacity-50"
-              />
-              <button 
-                onClick={handleAiCustomize}
-                disabled={isAiLoading || !aiPrompt.trim()}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-4 py-2 rounded text-xs transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-              >
-                {isAiLoading ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Refining...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Refine Code
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Error or success messages */}
-            {aiError && (
-              <div className="mt-2 text-red-400 text-xs flex items-center gap-1.5 bg-red-950/20 px-3 py-1.5 rounded border border-red-900/30">
-                <AlertCircle className="w-3.5 h-3.5" />
-                {aiError}
-              </div>
-            )}
-            {aiSuccessMessage && (
-              <div className="mt-2 text-green-400 text-xs flex items-center justify-between bg-green-950/20 px-3 py-1.5 rounded border border-green-900/30">
-                <span className="flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5" />
-                  {aiSuccessMessage}
-                </span>
-                <button onClick={() => setAiSuccessMessage(null)} className="text-slate-400 hover:text-white">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            )}
-          </div>
-
           {/* Quick Stats Bar */}
           <div className="h-10 bg-[#0d1117] border-t border-[#30363d] flex items-center px-6 gap-8 text-[11px] select-none shrink-0 font-mono">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-500">SP GEN:</span>
+              <span className="font-bold text-slate-500">SP:</span>
               <span className="text-green-400 font-medium italic">Success</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-500">XML MAPPING:</span>
+              <span className="font-bold text-slate-500">XML:</span>
               <span className="text-green-400 font-medium italic">Generated</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-500">MODEL CLASS:</span>
+              <span className="font-bold text-slate-500">MODEL:</span>
+              <span className="text-green-400 font-medium italic">Ready</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-500">JS:</span>
               <span className="text-green-400 font-medium italic">Ready</span>
             </div>
             <div className="flex items-center gap-2 text-slate-400">
