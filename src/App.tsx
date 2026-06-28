@@ -12,6 +12,12 @@ import {
   FileSpreadsheet,
   FileText
 } from 'lucide-react';
+import Prism from 'prismjs';
+import 'prismjs/themes/prism-tomorrow.css';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-csharp';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-markup';
 
 // Interfaces for parser
 interface Column {
@@ -35,35 +41,32 @@ const SAMPLE_SCHEMAS = {
 	[ModifiedOn] [datetime] NULL,
 	[CompanyID] [int] NULL,
 	[IsDefault] [bit] NULL
-)`,
-  machineType: `CREATE TABLE [dbo].[tbl_Machine_Type](
-	[Machine_Type_ID] [int] PRIMARY KEY IDENTITY(1,1) NOT NULL,
-	[Machine_Type_Name] [varchar](100) NULL,
-	[Description] [varchar](500) NULL,
-	[Machine_Code] [varchar](50) NULL,
-	[IsDeleted] [bit] NULL,
-	[CreatedBy] [int] NULL,
-	[CreatedOn] [datetime] NULL,
-	[ModifiedBy] [int] NULL,
-	[ModifiedOn] [datetime] NULL,
-	[CompanyID] [int] NULL
-)`,
-  departmentMaster: `CREATE TABLE [dbo].[tbl_Department_Master](
-	[Department_ID] [int] PRIMARY KEY IDENTITY(1,1) NOT NULL,
-	[Department_Name] [varchar](150) NULL,
-	[Department_Code] [varchar](30) NULL,
-	[Cost_Center] [varchar](50) NULL,
-	[IsDeleted] [bit] NULL,
-	[CreatedBy] [int] NULL,
-	[CreatedOn] [datetime] NULL,
-	[ModifiedBy] [int] NULL,
-	[ModifiedOn] [datetime] NULL,
-	[CompanyID] [int] NULL,
-	[IsDefault] [bit] NULL
 )`
 };
 
 type TabType = 'sp' | 'xml' | 'datamanager' | 'model' | 'js' | 'controller' | 'view' | 'partialView';
+
+const getPrismLanguage = (type: TabType): string => {
+  switch(type) {
+    case 'sp': return 'sql';
+    case 'xml': return 'markup';
+    case 'datamanager': return 'csharp';
+    case 'model': return 'csharp';
+    case 'js': return 'javascript';
+    case 'controller': return 'csharp';
+    case 'view': return 'markup';
+    case 'partialView': return 'markup';
+    default: return 'sql';
+  }
+};
+
+const getHighlightedCode = (code: string, type: TabType) => {
+  const lang = getPrismLanguage(type);
+  if (Prism.languages[lang]) {
+    return Prism.highlight(code, Prism.languages[lang], lang);
+  }
+  return code;
+};
 
 export default function App() {
   const [schemaInput, setSchemaInput] = useState(SAMPLE_SCHEMAS.assetLocation);
@@ -1181,17 +1184,31 @@ ${customColumns.map(col => `                    <td>@item.${col.name}</td>`).joi
       <header className="flex items-center justify-between px-6 py-3 bg-[#161b22] border-b border-[#30363d] shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-            <span className="font-bold text-white">S</span>
+            <span className="font-bold text-white">A</span>
           </div>
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-white flex items-center gap-2">
-              SprocGen <span className="text-slate-500 font-normal text-xs bg-slate-800 px-2 py-0.5 rounded">v2.4</span>
+              Auto Code Generator <span className="text-slate-500 font-normal text-xs bg-slate-800 px-2 py-0.5 rounded">v2.4</span>
             </h1>
             <p className="text-[10px] text-slate-400">Database & Code Generation Suite</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleCopy}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 border border-[#30363d] cursor-pointer"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-blue-400" />}
+            {copied ? 'Copied Active!' : 'Copy Active'}
+          </button>
+          <button 
+            onClick={handleDownload}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 border border-[#30363d] cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-indigo-400" />
+            Download Active
+          </button>
           <button 
             onClick={() => {
               // Copy all standard files
@@ -1200,9 +1217,9 @@ ${customColumns.map(col => `                    <td>@item.${col.name}</td>`).joi
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
             }}
-            className="bg-[#238636] hover:bg-[#2ea043] transition-colors cursor-pointer px-4 py-1.5 rounded text-sm font-medium text-white shadow-sm flex items-center gap-2"
+            className="bg-[#238636] hover:bg-[#2ea043] transition-colors cursor-pointer px-4 py-1.5 rounded text-xs font-semibold text-white shadow-sm flex items-center gap-1.5"
           >
-            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             Copy All Files
           </button>
         </div>
@@ -1223,47 +1240,6 @@ ${customColumns.map(col => `                    <td>@item.${col.name}</td>`).joi
               className="text-[10px] text-slate-400 hover:text-white uppercase font-semibold transition-colors cursor-pointer"
             >
               Clear
-            </button>
-          </div>
-
-          {/* Quick Preset Buttons */}
-          <div className="p-3 bg-[#161b22] border-b border-[#30363d] flex flex-wrap gap-2 shrink-0">
-            <span className="text-[10px] text-slate-500 w-full mb-1">Load Preset Schema:</span>
-            <button 
-              onClick={() => {
-                setSchemaInput(SAMPLE_SCHEMAS.assetLocation);
-              }}
-              className={`text-xs px-2.5 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
-                schemaInput === SAMPLE_SCHEMAS.assetLocation 
-                  ? 'bg-blue-600 text-white font-medium' 
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" /> Asset Location
-            </button>
-            <button 
-              onClick={() => {
-                setSchemaInput(SAMPLE_SCHEMAS.machineType);
-              }}
-              className={`text-xs px-2.5 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
-                schemaInput === SAMPLE_SCHEMAS.machineType 
-                  ? 'bg-blue-600 text-white font-medium' 
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              <Cpu className="w-3.5 h-3.5" /> Machine Type
-            </button>
-            <button 
-              onClick={() => {
-                setSchemaInput(SAMPLE_SCHEMAS.departmentMaster);
-              }}
-              className={`text-xs px-2.5 py-1 rounded transition-all cursor-pointer flex items-center gap-1.5 ${
-                schemaInput === SAMPLE_SCHEMAS.departmentMaster 
-                  ? 'bg-blue-600 text-white font-medium' 
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" /> Dept Master
             </button>
           </div>
 
@@ -1387,29 +1363,12 @@ ${customColumns.map(col => `                    <td>@item.${col.name}</td>`).joi
               </button>
             </div>
 
-            {/* Actions for active code block */}
-            <div className="flex gap-2 pr-2 shrink-0">
-              <button 
-                onClick={handleCopy}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded text-xs transition-all flex items-center gap-1.5 border border-[#30363d] cursor-pointer"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-blue-400" />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-              <button 
-                onClick={handleDownload}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded text-xs transition-all flex items-center gap-1.5 border border-[#30363d] cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5 text-indigo-400" />
-                Download
-              </button>
-            </div>
           </div>
 
           {/* Code display window */}
           <div className="flex-1 overflow-auto p-4 bg-[#010409] text-[#e6edf3] font-mono text-[13px] leading-relaxed relative min-h-0 select-text">
             {/* Syntax-colored code block */}
-            <pre className="whitespace-pre-wrap select-text">{getActiveCode()}</pre>
+            <pre className="whitespace-pre-wrap select-text"><code className={`language-${getPrismLanguage(activeTab)}`} dangerouslySetInnerHTML={{ __html: getHighlightedCode(getActiveCode(), activeTab) }} /></pre>
           </div>
 
           {/* Quick Stats Bar */}

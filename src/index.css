@@ -1,1 +1,106 @@
 @import "tailwindcss";
+
+/* Custom Visual Studio style syntax coloring override for PrismJS */
+pre[class*="language-"],
+code[class*="language-"] {
+  color: #d4d4d4;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  text-align: left;
+  white-space: pre-wrap;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+  tab-size: 4;
+  hyphens: none;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6a9955 !important;
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: #cccccc !important;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #569cd6 !important;
+}
+
+/* SQL, XML, JS and C# Keywords */
+.token.keyword {
+  color: #569cd6 !important;
+  font-weight: 500;
+}
+
+/* Class names and types in C# / JS */
+.token.class-name,
+.token.maybe-class-name {
+  color: #4ec9b0 !important;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: #ce9178 !important;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #d4d4d4 !important;
+}
+
+.token.atrule,
+.token.attr-value {
+  color: #ce9178 !important;
+}
+
+/* Methods & Functions */
+.token.function {
+  color: #dcdcaa !important;
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #9cdcfe !important;
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+/* Tag colors in XML / HTML */
+.token.tag .token.punctuation {
+  color: #808080 !important;
+}
+.token.tag .token.namespace {
+  color: #4ec9b0 !important;
+}
+.token.attr-name {
+  color: #9cdcfe !important;
+}
+.token.attr-value .token.punctuation {
+  color: #ce9178 !important;
+}
