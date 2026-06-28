@@ -1,0 +1,6 @@
+{
+  "name": "SprocGen",
+  "description": "Database Stored Procedure, XML Mapping, C# DataManager, and C# Model Code Generator tool.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
